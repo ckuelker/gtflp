@@ -1,0 +1,112 @@
+#!/usr/bin/bash
+# +---------------------------------------------------------------------------+
+# | gov                                                                       |
+# |                                                                           |
+# | A simple colored status tool. It shows green committed files, cyan/orange |
+# | modified files and red untracked files. At the top you can see the path   |
+# | of the git repository. The name 'gov' stands for 'git overview'.          |
+# |                                                                           |
+# | Version: 0.1.1 (change inline)                                            |
+# |                                                                           |
+# | Changes:                                                                  |
+# |                                                                           |
+# | 0.1.1 2023-03-18 Christian Külker <c@c8i.org>                             |
+# |     - Release within the gtflp project on github.com/ckuelker/gtflp       |
+# | 0.1.0 2019-12-03 Christian Külker <c@c8i.org>                             |
+# |     - Initial release                                                     |
+# |                                                                           |
+# +---------------------------------------------------------------------------+
+#
+# REMARK: The zsh plugin 'oh-my-zsh' already defined the alias 'gst' in
+#         ~/.oh-my-zsh/plugins/git/git.plugin.zsh. You could replace it with
+#         gov, but if you only rename gov to gst, the alias will win and not
+#         gov.
+#
+#
+VERSION=0.1.1
+L=`printf %80s |tr " " "="`
+l=`printf %80s |tr " " "-"`
+RED='\033[0;31m'
+ORANGE='\033[0;33m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+PWD=`pwd`
+
+function debug {
+        if [ -n "$GTFLP_DEBUG" ];then
+                echo "GTFLP DEBUG $VERSION $1"
+        fi
+}
+
+# Dispatch with and w/o PATH invocation
+if [ -z "$1" ]; then # ............. No PATH
+        DIR="$PWD";
+        GIT="$PWD/.git";
+else
+        if [[ "$1" =~ ^/ ]]; then # Absoulte PATH
+               DIR="$1";
+               GIT="$1/.git";
+        else # .................... Relative PATH
+               DIR="$PWD/$1";
+               GIT="$PWD/$1/.git";
+        fi
+fi
+debug "PWD  [$PWD]"
+debug "DIR  [$DIR]"
+debug "GIT  [$DIR]"
+if [ -n "$1" ]; then # PATH
+        debug "ARGV [$1]"
+fi
+debug $L
+if REP=`git -C $DIR rev-parse --git-dir 2>/dev/null|egrep -e '.git$'`; then
+        debug "REP [$REP]"
+        if [ "$REP" = ".git" ]; then
+                echo $DIR
+        else
+                echo $REP|sed -e 's%/\.git$%%'
+        fi
+        debug $l
+        debug "Tracked files: (if any, modified and unmodified)"
+        for i in `git -C $DIR ls-tree -r --name-only --full-name HEAD|sort`;do
+                STATUS=`git -C $DIR status --porcelain $i`
+                debug "STATUS [$STATUS]"
+                if [ " M $i" = "$STATUS" ]; then # Modified
+                        debug "Modified"
+                        echo -e "${ORANGE}$i${NC}"
+                else # ........................... Not Modified
+                        debug "Not modified"
+                        echo -e "${GREEN}$i${NC}"
+                fi
+        done
+        debug $l
+        debug "Untracked files: (if any)"
+        for i in `git -C $DIR ls-files --others --exclude-standard|sort`;do
+                echo -e "${RED}$i${NC}"
+        done
+        debug $L
+else
+        cat << EOF
+$L
+ERROR:
+
+    This directory [$DIR] is NOT a git repository.
+
+    - Consider entering a git repository
+    - Or use 'gov [DIR]' to display the status of a child directory
+
+USAGE:
+
+    gov       - Print the status of the current git repository
+
+    gov [DIR] - Enter the git repository via the path DIR and print the current
+                status of that directory
+DEBUG:
+
+     export GTFLP_DEBUG=1
+
+$L
+EOF
+fi
+
+exit 0;
+
