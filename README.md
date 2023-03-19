@@ -1,8 +1,8 @@
 ---
 title: gtflp/README.md
 author: Christian Külker
-date: 2023-03-18
-version: 0.1.0
+date: 2023-03-20
+version: 0.1.1
 
 ---
 
@@ -30,6 +30,7 @@ people_.
 
 | Version | Date       | Notes                                                |
 | ------- | ---------- | ---------------------------------------------------- |
+| 0.1.1   | 2023-03-20 | Add gtd, improve gov                                 |
 | 0.1.0   | 2023-03-18 | Initial release with gov                             |
 
 # Author
