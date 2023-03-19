@@ -6,10 +6,23 @@
 # | modified files and red untracked files. At the top you can see the path   |
 # | of the git repository. The name 'gov' stands for 'git overview'.          |
 # |                                                                           |
-# | Version: 0.1.1 (change inline)                                            |
+# | gtd                                                                       |
+# |                                                                           |
+# | A simple colored status tool. It shows cyan/orange  modified files and    |
+# | red untracked files. At the top you can see the path of the git           |
+# | repository. This is simialr to 'git status' but shorter and faster to     |
+# | understand. The name 'gtd' stands for 'git to do'.                        |
+# |                                                                           |
+# | Version: 0.1.2 (change inline)                                            |
 # |                                                                           |
 # | Changes:                                                                  |
 # |                                                                           |
+# | 0.1.2 2023-03-19 Christian Külker <c@c8i.org>                             |
+# |     - Merge previous independent gtd script                               |
+# |     - Add more debug output                                               |
+# |     - Fix some debug outout                                               |
+# |     - Fix a STATUS issue, not detecting modified files                    |
+# |     - Add git sub-module warning                                          |
 # | 0.1.1 2023-03-18 Christian Külker <c@c8i.org>                             |
 # |     - Release within the gtflp project on github.com/ckuelker/gtflp       |
 # | 0.1.0 2019-12-03 Christian Külker <c@c8i.org>                             |
@@ -22,8 +35,9 @@
 #         gov, but if you only rename gov to gst, the alias will win and not
 #         gov.
 #
+#         This scripts do not handle (or detect) git sub-modules
 #
-VERSION=0.1.1
+VERSION=0.1.2
 L=`printf %80s |tr " " "="`
 l=`printf %80s |tr " " "-"`
 RED='\033[0;31m'
@@ -31,57 +45,76 @@ ORANGE='\033[0;33m'
 GREEN='\033[0;32m'
 NC='\033[0m'
 PWD=`pwd`
+SLF=`basename $0`
 
 function debug {
         if [ -n "$GTFLP_DEBUG" ];then
                 echo "GTFLP DEBUG $VERSION $1"
         fi
 }
+function warn {
+        echo -e "${ORANGE}$L\nWARNING: $1 \n$L${NC}"
+}
 
 # Dispatch with and w/o PATH invocation
 if [ -z "$1" ]; then # ............. No PATH
+        debug "Env no PATH"
         DIR="$PWD";
         GIT="$PWD/.git";
 else
         if [[ "$1" =~ ^/ ]]; then # Absoulte PATH
+               debug "Env absolute PATH"
                DIR="$1";
                GIT="$1/.git";
         else # .................... Relative PATH
+               debug "Env relative PATH"
                DIR="$PWD/$1";
                GIT="$PWD/$1/.git";
         fi
 fi
-debug "PWD  [$PWD]"
-debug "DIR  [$DIR]"
-debug "GIT  [$DIR]"
+debug "SLF  [$SLF] self"
+debug "PWD  [$PWD] print working directory"
+debug "DIR  [$DIR] current directory PWD+ARGV"
+debug "GIT  [$GIT] repo guess from DIR"
 if [ -n "$1" ]; then # PATH
         debug "ARGV [$1]"
 fi
+if [ -f "$GIT" ]; then
+        W="Directory [$DIR] might be a git sub-module. As of $SLF $VERSION git"
+        WARN="$W sub-modules are not handled. Use 'git status'."
+        warn "$WARN"
+fi
 debug $L
 if REP=`git -C $DIR rev-parse --git-dir 2>/dev/null|egrep -e '.git$'`; then
-        debug "REP [$REP]"
+        debug "REP [$REP] repository"
         if [ "$REP" = ".git" ]; then
-                echo $DIR
+                GBD=$DIR
         else
-                echo $REP|sed -e 's%/\.git$%%'
+                GBD=`echo "$REP"|sed -e 's%/\.git$%%'`
         fi
+        debug "GBD [$GBD] git base directory"
+        echo $GBD
         debug $l
         debug "Tracked files: (if any, modified and unmodified)"
-        for i in `git -C $DIR ls-tree -r --name-only --full-name HEAD|sort`;do
-                STATUS=`git -C $DIR status --porcelain $i`
-                debug "STATUS [$STATUS]"
-                if [ " M $i" = "$STATUS" ]; then # Modified
+        for file in `git -C $DIR ls-tree -r --name-only HEAD|sort`;do
+                debug "Process file [$file]"
+                STATUS=`git -C $DIR status -s $file`
+                debug "STATUS [$STATUS] Status if file"
+                if [ " M $file" = "$STATUS" ]; then # Modified
                         debug "Modified"
-                        echo -e "${ORANGE}$i${NC}"
+                        echo -e "${ORANGE}$file${NC}"
                 else # ........................... Not Modified
                         debug "Not modified"
-                        echo -e "${GREEN}$i${NC}"
+                        if [ "$SLF" = "gov" ]; then
+                                debug "Show not modified only for gov"
+                                echo -e "${GREEN}$file${NC}"
+                        fi
                 fi
         done
         debug $l
         debug "Untracked files: (if any)"
-        for i in `git -C $DIR ls-files --others --exclude-standard|sort`;do
-                echo -e "${RED}$i${NC}"
+        for file in `git -C $DIR ls-files --others --exclude-standard|sort`;do
+                echo -e "${RED}$file${NC}"
         done
         debug $L
 else
